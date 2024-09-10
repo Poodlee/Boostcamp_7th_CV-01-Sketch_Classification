@@ -32,5 +32,8 @@ html_favicon = 'favicon.ico'
 html_theme = 'sphinx_rtd_theme'
 html_static_path = ['_static']
 
-
+html_baseurl = 'https://poodlee.github.io/Boostcamp_7th_CV-01-Sketch_Classification/'
+extensions = [
+    'sphinx.ext.githubpages',
+]
 ##############################################################################
