@@ -54,6 +54,11 @@ Computer Vision에서는 다양한 형태의 이미지 데이터가 활용되고
    Related_Work/Related_Work_1.md
    Related_Work/Related_Work_2.md
 
+.. toctree::
+   :maxdepth: 1
+   :caption: Tutorial
+
+   Tutorial
 
 Indices and tables
 ==================

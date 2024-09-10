@@ -8,6 +8,7 @@
 import os
 import sys
 sys.path.insert(0, os.path.abspath('.'))   # Default path
+sys.path.insert(0, os.path.abspath('..'))  
 
 
 project = 'Sketch Image Classification'
@@ -20,7 +21,8 @@ release = '1.0.0'
 
 extensions = [
     'myst_parser',
-    'sphinx.ext.autodoc",
+    'sphinx.ext.autodoc',
+    'sphinx.ext.githubpages'
              ]
 source_suffix = {
     '.rst': 'restructuredtext',
@@ -40,7 +42,4 @@ html_theme = 'sphinx_rtd_theme'
 html_static_path = ['_static']
 
 html_baseurl = 'https://poodlee.github.io/Boostcamp_7th_CV-01-Sketch_Classification/'
-extensions = [
-    'sphinx.ext.githubpages',
-]
 ##############################################################################
