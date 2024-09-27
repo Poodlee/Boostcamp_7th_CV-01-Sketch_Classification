@@ -129,7 +129,7 @@
 ### Step 6: 결과 분석 및 시각화
 * GradCAM 이용하여 시각화 진행
     <p align="center">
-    <img src="https://github.com/user-attachments/assets/301a97b9-2caf-4ae2-a895-17ee0b1a5711" alt="image" width="300"/>
+    <img src="https://github.com/user-attachments/assets/f55511df-c407-4d41-89d2-e2b36f53aa81" alt="image" width="700"/>
     </p>
 
 ### 수행 결과 
