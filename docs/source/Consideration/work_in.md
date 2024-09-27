@@ -1,11 +1,12 @@
-# Approach_1
+# Consideration_work_in
 
-## Hello
+## Augmentation의 다양화
 
-* Approach_1-1
-* Approach_1-1
+OpenCV
+* VerticalFlip
+* Moving Blur
 
-### Test Code
+## Code Logic의 문제
 
 ```python
 for i in range(0,100):

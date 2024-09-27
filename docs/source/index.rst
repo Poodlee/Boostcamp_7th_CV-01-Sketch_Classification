@@ -34,31 +34,35 @@ Computer Vision에서는 다양한 형태의 이미지 데이터가 활용되고
     output : 10,014개의 각 이미지별로 모든 객체에 대한 예측 확률
 
 .. toctree::
-   :maxdepth: 2
-   :caption: Approach:
-
-   Approach/Approach_1.md
-   Approach/Approach_2.md
-
-.. toctree::
-   :maxdepth: 2
-   :caption: Experiments:
-
-   Experiments/Experiments_1.md
-   Experiments/Experiments_2.md
-
-.. toctree::
-   :maxdepth: 2
-   :caption: Related_Work:
-
-   Related_Work/Related_Work_1.md
-   Related_Work/Related_Work_2.md
-
-.. toctree::
+   :titlesonly:
    :maxdepth: 1
-   :caption: Tutorial
+   :caption: Project
 
-   Tutorial
+   Project/project.md
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Individual:
+
+   Individual/경윤.md
+   Individual/세린.md
+   Individual/영석.md
+   Individual/태성.md
+   Individual/동준.md
+   Individual/태영.md
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Consideration:
+
+   Consideration/work_in.md
+   Consideration/work_out.md
+
+.. toctree
+..    :maxdepth: 1
+..    :caption: Tutorial
+
+..    Tutorial
 
 Indices and tables
 ==================

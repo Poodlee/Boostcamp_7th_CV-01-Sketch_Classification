@@ -1,0 +1,27 @@
+# 태성
+
+## 목표
+
+* 낮은 Validation public score 달성
+* pytorch lightning library 패키지 작성 경험
+
+## 요약
+
+* 모델: ResNet -> ResNext -> Swin_transformer(window7) -> Ensemble
+* Augmentation: Canny, Morhphology,Gaussian blur, moving blur
+* 깨달은 점: ~~~
+
+
+## 자세한 내용
+
+### 1. 시작
+처음에는 파이토치 라이트닝이 익숙하지 않아 전체적인 부분을 파악하는 데 어려움이 존재했다. ~~
+
+```python
+for i in range(0,100):
+    print(i)
+print('hello')
+```
+
+Hello, Today
+Today's ```weather``` is so hotttt.
