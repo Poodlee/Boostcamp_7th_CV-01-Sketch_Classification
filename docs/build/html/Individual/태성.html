@@ -59,10 +59,9 @@
 <li class="toctree-l1 current"><a class="current reference internal" href="#">태성</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#id2">목표</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#id3">요약</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#id4">자세한 내용</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#id5">1. 시작</a></li>
-</ul>
-</li>
+<li class="toctree-l2"><a class="reference internal" href="#id4">자세한 내용</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id5">후기 및 교훈</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#id6">다음 프로젝트에서 시도할 것</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="%EB%8F%99%EC%A4%80.html">동준</a></li>
@@ -102,32 +101,76 @@
 <h1>태성<a class="headerlink" href="#id1" title="Link to this heading"></a></h1>
 <section id="id2">
 <h2>목표<a class="headerlink" href="#id2" title="Link to this heading"></a></h2>
-<ul class="simple">
-<li><p>낮은 Validation public score 달성</p></li>
-<li><p>pytorch lightning library 패키지 작성 경험</p></li>
-</ul>
+<p>첫 번째 목표: 프로젝트 형식 맞추기.</p>
+<p>두 번째 목표: 데이터 기반 가설 설정 및 증명 과정 경험.</p>
 </section>
 <section id="id3">
 <h2>요약<a class="headerlink" href="#id3" title="Link to this heading"></a></h2>
 <ul class="simple">
-<li><p>모델: ResNet -&gt; ResNext -&gt; Swin_transformer(window7) -&gt; Ensemble</p></li>
-<li><p>Augmentation: Canny, Morhphology,Gaussian blur, moving blur</p></li>
-<li><p>깨달은 점: ~~~</p></li>
+<li><p>강한 Augmentation 적용으로 성능 저하 확인.</p></li>
+<li><p>원본 이미지와 강한 Augmentation 이미지를 합쳐 학습했으나 성능에 차이 없거나, 하락</p></li>
+<li><p>softmax 값을 통한 Noise 제거 시도했으나 성공적이지 않음.</p></li>
+<li><p>Cosine Similarity를 통한 중복 제거는 효과적이었으나 성능에 큰 변화 없음.</p></li>
+<li><p>CoCa 및 CLIP Pretrained 모델을 사용한 학습에서 상대적으로 높은 성능 확인.</p></li>
 </ul>
 </section>
 <section id="id4">
 <h2>자세한 내용<a class="headerlink" href="#id4" title="Link to this heading"></a></h2>
-<section id="id5">
-<h3>1. 시작<a class="headerlink" href="#id5" title="Link to this heading"></a></h3>
-<p>처음에는 파이토치 라이트닝이 익숙하지 않아 전체적인 부분을 파악하는 데 어려움이 존재했다. ~~</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">100</span><span class="p">):</span>
-    <span class="nb">print</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;hello&#39;</span><span class="p">)</span>
-</pre></div>
-</div>
-<p>Hello, Today
-Today’s <code class="docutils literal notranslate"><span class="pre">weather</span></code> is so hotttt.</p>
+<ul class="simple">
+<li><p>강한 Augmentation</p>
+<ul>
+<li><p>데이터에 많은 변형을 가해, 적은 데이터로 넒은 분포를 커버</p></li>
+<li><p>sketch data의 특성 상 강한 augmentation도 sementic을 해치지 않을 것이라는 가설</p></li>
+<li><p>Sketch 데이터에 ElasticTransform, GridDistortion, Afine을 적용했으나 성능이 떨어짐.</p></li>
+<li><p>Fine-grained 클래스가 포함되어 있어, 세밀한 정보가 중요했을 것이라고 판단.</p></li>
+</ul>
+</li>
+<li><p>Origin 이미지와 Augmentation 이미지 Concat</p>
+<ul>
+<li><p>Training과 Test 시 Canny와 같은 Augmentation을 추가적으로 정보로 사용.</p></li>
+<li><p>모델을 먼저 학습하고 Feature를 Concat하여 fc layer를 통과한 성능을 확인했으나 성능 저하.</p></li>
+<li><p>여러 Hyperparameter가 복잡하게 얽혀 조정 부족, 데이터 부족으로 늘어난 분포 커버 불가능.</p></li>
+<li><p><img alt="image" src="https://github.com/user-attachments/assets/168e5ee1-3253-49be-bc99-0ac1f498d9b2" /></p></li>
+</ul>
+</li>
+<li><p>Softmax값을 통한 Noise 제거</p>
+<ul>
+<li><p>k-fold로 모든 training set을 validation set으로 활용해 softmax 예측값을 구한 뒤 noise 제거</p></li>
+<li><p>Target Softmax Value와 Maximum Softmax Value를 사용해 Noise 제거를 시도했으나 실패.</p></li>
+<li><p>멘토님으로 부터 Softmax가 아닌, 각각의 class마다 Sigmoid를 활용 제안, fine grained class가 있어 softmax의 normalization 부분이 값이 작게 만든거 같다</p></li>
+</ul>
+</li>
+<li><p>Cosine Similarity를 통한 중복 제거</p>
+<ul>
+<li><p>Threshold 0.97로 중복 제거, 사용된 모델의 성능은 val acc 80%.</p></li>
+<li><p>중복 제거는 성공적이었으나 성능에는 큰 변화 없음.</p></li>
+</ul>
+</li>
+<li><p>CoCa 및 CLIP Pretrained 모델 사용</p>
+<ul>
+<li><p>FC Layer만 학습.</p></li>
+<li><p>Imagenet이 아닌 lion2b dataset으로 Pretrained되어 더 나은 성능을 기대.</p></li>
+<li><p>기존 보다는 높은 성능</p></li>
+<li><p>다른 조의 image net으로 학습한 EVA 모델에 비해 성능은 낮았기에 데이터 가설은 불충분 결론</p></li>
+</ul>
+</li>
+</ul>
 </section>
+<section id="id5">
+<h2>후기 및 교훈<a class="headerlink" href="#id5" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>긴 Iteration 및 Hyperparameter 조정 부족으로 성능 개선에 어려움.</p></li>
+<li><p>Test Set의 분포를 더 고려했어야 함.</p></li>
+<li><p>CUDA 설치로 인한 서버 문제를 분석하지 못한 점이 아쉬움.</p></li>
+</ul>
+</section>
+<section id="id6">
+<h2>다음 프로젝트에서 시도할 것<a class="headerlink" href="#id6" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>빠른 Iteration 개발.</p></li>
+<li><p>데이터 기반 가설 설정.</p></li>
+<li><p>Hyperparameter 튜닝에 집중.</p></li>
+</ul>
 </section>
 </section>
 

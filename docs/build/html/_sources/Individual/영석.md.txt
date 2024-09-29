@@ -2,26 +2,105 @@
 
 ## 목표
 
-* 낮은 Validation public score 달성
-* pytorch lightning library 패키지 작성 경험
+* 깃을 통한 협업 경험을 쌓고 충돌 발생 시 그것을 해결하는 방법을 배우는 것
+* 다양한 데이터 어그멘테이션 기법 사용하여 학습 시도하여 가장 성능 높은 어그멘테이션 찾기
+* 모델 성능 최대로 끌어올리는 방법 탐색
 
 ## 요약
 
-* 모델: ResNet -> ResNext -> Swin_transformer(window7) -> Ensemble
-* Augmentation: Canny, Morhphology,Gaussian blur, moving blur
-* 깨달은 점: ~~~
+* 모델: ResNext -> vit_giant_patch14_clip_224 -> Coca
+* Augmentation: 
+    * (online) RandomHorizontalFlip(0.5), RandomRotation(15), Colorjitter(brighness=0.2, contrast=0.2)
+        * (offline) original
+        * (offline) canny
+        * (offline) original+canny
+        * (offline) original+canny+sobel+laplacian
+    * (online) RandomRotation(-15,15)
+        * (offline) (original + hflip + vflip + hvflip) * (original + canny) * (original + rotate-30 + rotate30) 총 원본의 24배
+
+* 깨달은 점: 데이터 늘리기 전에 어떤 데이터가 존재하는지 확인하자
 
 
 ## 자세한 내용
 
-### 1. 시작
-처음에는 파이토치 라이트닝이 익숙하지 않아 전체적인 부분을 파악하는 데 어려움이 존재했다. ~~
+### 모델 학습 결과
 
-```python
-for i in range(0,100):
-    print(i)
-print('hello')
-```
+| Model | Train Data | Offline | Online | Optimizer | Loss | Test Data | 성능 | 비고 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| ResNext | Original | Original | RandomHorizontalFlip(0.5), RandomRotation(15), Colorjitter(brighness=0.2, contrast=0.2) | Adam | CE | | | - |
+| ResNext | Original | Canny | 위와 동일 | Adam | CE | original | 0.795 | - |
+| ResNext | Original | Original + Canny | 위와 동일 | Adam | CE | original | 0.845 | - |
+| ResNext | Original | Original + Canny + Sobel + Laplacian | 위와 동일 | Adam | CE | original | 0.832 | - |
+| ResNext | Original | Original + Canny + Sobel + Laplacian | 위와 동일 | Adam | CE | laplacian | 0.794 | - |
+| ResNext | Original | Original + Canny + Sobel + Laplacian | 위와 동일 | Adam | CE | canny | 0.790 | - |
+| ResNext | Original | Original + Canny + Sobel + Laplacian | 위와 동일 | Adam | CE | sobel | 0.703 | - |
+| ResNext | Original | Original + Canny + Sobel + Laplacian | 위와 동일 | AdamW | CE | original | 0.832 | - |
+| ResNext | Original | Original + Canny + Sobel + Laplacian | 위와 동일 | AdamW | CE | original+canny+sobel+laplacian | 0.819 | 테스트 데이터로 다수결 |
+| ResNext | Original | Original + Canny + Sobel + Laplacian | 위와 동일 | RAdam | CE | original | 0.827 | - |
+| ResNext | Original | Original + Canny | 위와 동일 | AdamW | CE | original | 0.835 | - |
+| ResNext | 불필요한 데이터 제거 | (Original + HFlip + VFlip + HVFlip) * (Original + Canny) * (Original + Rotate-30 + Rotate30) | RandomRotation(-15,15) | AdamW | CE | original | 0.828 | 원본의 24배 증강 |
+| ResNext | 불필요한 데이터 제거 | original + canny + morphology-open + morphology-close + motion blur | cutmix_mixup(cutmix_ratio: 0.3, mixup_ratio: 0.3), HorizontalFlip(p=0.5), VerticalFlip(p=0.1), Rotate(limit=45) | AdamW | Focal | original | 0.830 | - |
+| vit-clip | original | original | cutmix_mixup(cutmix_ratio: 0.3, mixup_ratio: 0.3), HorizontalFlip(p=0.5), VerticalFlip(p=0.1), Rotate(limit=45) | AdamW | Focal | original | 0.902 | k-fold 5 적용 |
+| vit-clip | original | original | HorizontalFlip(p=0.5), VerticalFlip(p=0.1), Rotate(limit=45) | AdamW | Focal | original | 0.904 | 믹스업 제거, k-fold 5 적용 |
+| coca | original | original | HorizontalFlip(p=0.5), VerticalFlip(p=0.1), Rotate(limit=45) | AdamW | Focal | original | 0.898 | k-fold 5 적용 |
+| coca | original | original | HorizontalFlip(p=0.5), VerticalFlip(p=0.1), Rotate(limit=45) | AdamW | Focal | original | 0.883 | 이미지 전처리 시 coca에서 제공하는 값 사용 |
 
-Hello, Today
-Today's ```weather``` is so hotttt.
+표에서 보면 알 수 있듯 데이터 증강 부분에서는 canny만 적용하여 original + canny로 학습시키는 것이 가장 학습률 증가에 도움이 되었고, 옵티마이저 에서는 AdamW가 미약하게 성능 향상에 도움이 되었다. 가장 크게 영향을 준 것은 model로 vit-clip, coca 모델이 더 높은 성능을 보여준다.
+
+### 시간에 따른 학습시도
+우선 처음에는 모델을 픽스한 뒤 데이터를 증강해가며 가장 높은 성능을 보이는 증강 방식을 찾기위해 노력했다. 가장 기본적으로 팀원분이 만들어준 data augmentation 파일을 이용해 원본 데이터에서 canny, sobel, laplacian만 사용한 데이터를 사용하였고, 결과적으로 모든 경우의 수를 테스트 하지는 못했지만 original + canny 만을 사용한 데이터가 가장 높은 성능을 얻을 수 있었다.
+
+그 다음에는 optimizer를 AdamW, RAdam으로 바꿔서 테스트 해보았고 미약하게나마 AdamW가 높은 성능을 보였다.
+
+그렇게 테스트를 하는 과정에서 offline augmentation 외에도 online augmentation이 기본적으로 적용되어있다는 것을 알게되어 (original + canny) * (original, hflip) * (rotate-30, original, rotate30) 총 12배 증강된 학습 데이터를 사용하여 학습을 진행하던 도중 중단하였다.
+
+이 후 학습 데이터 확인결과 특정 타겟들에 동일한 이미지가 포함되거나, 한장의 이미지를 플립한 데이터가 여러개 들어가는 등 불필요한 데이터가 많다는 것을 알게 되어 이런 부분들을 직접 모두 제거하여 학습데이터로 사용해보기로 하였다.
+
+우선 이런 데이터들을 완전히 제거한 뒤 offline으로 (Original + HFlip + VFlip + HVFlip) * (Original + Canny) * (Original + Rotate-30 + Rotate30) 적용하여 이미지를 총 24배로 증강하고 online으로는 rotate(-15,15)만을 사용하여 학습을 진행하였다. 다만 학습 결과로는 0.828 이라는 그냥 학습만 한것보단 높지만 그냥 canny만 적용해서 얻은 것 보다는 낮은 성능을 보였다. 이 시점에서 train, validation 스플릿을 할 때 offline이 적용된 데이터를 그대로 split 하면 원본에서 증강된 데이터가 test셋과 validation셋에 모두 들어가게 되어 심각한 과적합을 보일 수 있다는 것을 깨닫게 되었고, offline augmentation을 적용하기전에 test, validation을 미리 split하는 부분에 대해서 시도하였으나 특정 타겟에서 이미지가 1개 밖에 없는 경우가 존재하여 실패하였다.
+
+그 이후에는 원본 데이터만을 사용하여 위처럼 시도하는 방법도 생각해 봤으나 원본데이터에는 이미 증강이 이루어진 이미지들이 존재하는데 그것을 다시 증강하면 결국 과적합 문제를 해결할 수 없다고 판단해 다른 방법을 시도하는데 시간을 사용하도록 결정하였다.
+
+팀적으로 Sweep을 적용하여 테스트하기로 하여 Sweep 적용 과정에서 발생하는 오류를 확인하고 수정하는 부분을 맡아 작성하였다. 다만 vit에서는 sweep을 적용하여 최적의 파라미터를 찾기에는 너무 시간이 오래걸려 직접 적용해서 테스트해 보지는 못했다.
+
+이 후에는 팀원들이 했던 모델 중 가장 성능이 높은 모델과 새롭게 시도한 방식 중 가장 성능 향상이 뛰어났던 방식을 사용하기 위해 vit-clip 에 k-fold를 적용하여 최고 성능을 얻을 수 있었다.
+
+### 깨달은 점
+* 데이터 관점
+    * 데이터를 증강하는 실험들을 한 뒤에 학습 데이터에 이미 한 장의 이미지를 플립하는 등의 증강이 적용되어 있는 점을 알게 되어서 데이터의 증강을 진행하기 이전에 어떤 데이터가 존재하는지 확인하는 것이 중요하다는 점을 깨달을 수 있었다.
+
+    * 내가 불필요하다고 생각했던 데이터가 사실은 유의미한 데이터 일 수 도 있겠다는 생각을 하게 되었다. 예를 들어 학습 데이터와 테스트 데이터가 모두 동일하게 편향되어 있다면 오히려 학습 데이터를 직접 일일히 수정하는 것이 오히려 성능을 떨어트릴 수도 있다는 점을 깨달았다.
+
+* 모델 관점
+    * 이전에는 AI관련하여 프로젝트를 진행할 떄 초기에 모델을 선택하거나 하는 부분을 최소한으로 하고 데이터에 대한 부분을 굉장히 시간을 오래들여 집중적으로 고민하였는데 모델 선택에 대한 부분도 성능에 상당히 큰 영향을 줄 수 있다는 것을 알게되었다. 또한 단순히 비슷한 크기의 모델이라고 비슷한 성능이 아니라는 점을 느끼게 된 것 같다.
+
+* 협업 관점
+    * 짧게 짧게 여러번 commit하는 것이 충돌 관리에 좋다는 점을 느낄 수 있었다.
+
+    * 팀원이 각각 수정하여 사용하는 파일의 경우 실수로 push 하는 경우 충돌이 발생하거나 하는 경우가 있었다. 이런 부분에 대해서 브랜치를 새로 만든다던지, 특정 파일을 변경하는 경우 미리 공지하여 다 같이 pull 한다던지와 같은 방법을 미리 정하고 한다면 더 수월하게 협업할 수 있을 거 같다.
+
+### 새로 시도한 부분
+이전에는 프로젝트를 진행하면서 깃허브에 커밋 푸시할 때 변경된 파일을 통째로 올리고 대충 생각나는 메시지를 적어 올렸는데 이번 프로젝트 에서는 한번에 파일 하나에서 유의미하게 차이가 존재하는 부분만 커밋하고 메시지 또한 컨벤션을 지켜가며 깃허브를 활용하였다. 이러한 변화로 개인적으로 깃허브에 push pull 하는 과정에서 충돌이 최소화 되었고, 잘못 커밋한 부분을 없에고 싶을 때 기존과 달리 그 부분만 찾아서 취소하면 되어서 더 빠르게 에러를 수정할 수 있었던 거 같다.
+
+### 마주한 한계 및 아쉬웠던 점
+* 우선 데이터를 24배 증강했을 때 과적합이 발생한 시점에서 테스트와 벨리데이션을 미리 나눈 뒤 데이터 증강을 시도했었는데 클래스에 존재하는 이미지가 1개 뿐이라 실패했던 점이 가장 아쉬웠던 것 같다. 시간이 더 있었다면 이미지를 임의로 추가하는 방법을 사용해서 시도해본다면 좋은 성능이 나오지 않았을 까 하는 아쉬움이 있다.
+
+* 시간 부족의 문제로 vit에서 가장 성능이 좋았던 original + canny를 적용하여 학습했다면 어떤 결과가 나왔을지 테스트해보지 못했던 점이 아쉽다.
+
+* 팀원간의 데이터를 사용하는 부분에 있어 서로 다른 어그멘테이션을 사용하다 보니 동일한 모델, 동일한 파라미터라도 다른 결과가 나오는 문제가 발생할 수 있었을 거 같다.
+
+* sweep의 경우 하이퍼 파라미터를 찾기에는 좋지만 학습하는데 시간이 오래걸리는 모델의 경우 너무 오랜 시간과 자원을 투자해야 하기 때문에 쉽게 시도하지 못한 점이 아쉽다.
+
+* k-fold에서 5를 사용하여 가장 좋은 결과를 얻을 수 있었는데 다른 수치를 사용해서 더 좋은 성능을 낼 수 있지 않았을 까 하는 아쉬움이 있다.
+
+* 더 다양한 모델들에 대해 조사해서 한번씩 적용해 봤으면 어땠을까 하는 아쉬움이 있었다.
+
+* streamlit을 활용하여 학습전 train, test를 확인하여 타겟당 어떤 이미지가 존재하는지 클래스의 분포는 어떤지 미리 확인할 수 있었다면 좋았을 텐데 프로젝트 기간이 끝나기 직전에야 완성할 수 있어서 아쉬웠다. output의 경우에도 어떤 타겟에 어떤 이미지가 포함되었는지 확인할 수 있는 부분도 프로젝트가 끝난 이후 완성하였는데 프로젝트에서 활용할 수 있었다면 어떤 모델이 어떤 이미지를 혼동하는지 어떤 이미지를 잘 분류하는지에 대한 부분도 알 수 있었을테니 더 잘 활용할 수 있지 않았을까 하는 아쉬움이 있다.
+
+### 다음에 시도해 볼 것
+* 우선 이번 프로젝트 에서는 템플릿을 초기화한뒤 정리하지 않아 프로젝트 후반에 팀원분들이 폴더를 정리하고 파일들을 모으고 하는 과정에서 git 충돌 문제가 자주 발생하여서 그 부분을 확실하게 정하고 시작하면 좋을 것 같다.
+
+* config 파일의 경우도 서로 같은 config를 full 해서 서로 수정해서 사용하다 보니 실수로 push하거나 하는 경우 충돌이 발생하기도 하였는데 이런 부분에 대해서도 개선 방안을 찾아보면 좋을 거 같다.
+
+* 우선 가장 초기에 데이터를 먼저 함께 확인하고 어떻게 어그멘테이션을 적용하고 어떤 방식으로 데이터를 수정할 지 미리 정해서 팀원 모두가 동일한 데이터를 사용하면 좋을 거 같다. 다른 데이터를 사용하려면 csv 파일만 수정하거나 하는 방법을 이용할 수 있도록 초기에 모든 offline 어그멘테이션을 적용하여 동일한 데이터 사용하도록 하는 것이 좋을 거 같다.
+
+* 초기에 데이터 확인하는 과정에서 이전에 작성해둔 streamlit 파일 활용하여 이미지 확인 더 용이하게 하기

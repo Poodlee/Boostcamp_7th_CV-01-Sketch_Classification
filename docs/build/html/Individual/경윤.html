@@ -57,7 +57,19 @@
 <li class="toctree-l2"><a class="reference internal" href="#id2">목표</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#id3">요약</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#id4">자세한 내용</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#id5">1. 시작</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#swin-transformer-swin-base-patch4-window7-224">1. Swin Transformer인 swin_base_patch4_window7_224를 활용한 이유</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#swin-transformer">2. Swin Transformer의 구조</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id5">3. 시도</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#id6">시도 1</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id7">시도 2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id8">시도 3</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id9">시도 4</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id10">시도 5</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id11">시도 6</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#id12">4. 한계 및 아쉬운 점</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id13">5. 한계/교훈을 바탕으로 다음 프로젝트에서 시도해보고 싶은 점</a></li>
 </ul>
 </li>
 </ul>
@@ -103,30 +115,132 @@
 <section id="id2">
 <h2>목표<a class="headerlink" href="#id2" title="Link to this heading"></a></h2>
 <ul class="simple">
-<li><p>낮은 Validation public score 달성</p></li>
-<li><p>pytorch lightning library 패키지 작성 경험</p></li>
+<li><p><strong>첫 번째 목표</strong> 처음 진행해보는 프로젝트였기 때문에, 프로젝트의 전반적인 프로세스를 경험</p></li>
+<li><p><strong>두 번째 목표</strong> 가설을 세우고, 해당 가설에 맞게 모델과 loss를 선언해보기</p></li>
+<li><p><strong>첫 번째 목표 달성을 위해</strong></p>
+<ul>
+<li><p>프로젝트 진행 도중 나오는 모든 내용을 최대한 놓치는 것 없이 다 이해하려고 노력함</p></li>
+<li><p>새롭게 추가해보고 싶은 기법들을 추가하는 경험 (ex, mixup, motion blur, optimizer 추가)</p></li>
+</ul>
+</li>
+<li><p><strong>두 번째 목표 달성을 위해</strong></p>
+<ul>
+<li><p><strong>가설</strong><br />
+데이터 셋을 보니 클래스 간에 유사한 클래스가 많았다. (ex, 뱀의 종류가 구분하기 어려울 정도로 많음)
+이 클래스를 바로 500개를 구분하는 것보다 대분류(ex, 동물), 중분류(ex, 뱀), 소분류(최종 target 클래스) 구분지어서 loss를 구하는게 더 효과적이지 않을까?</p></li>
+<li><p><strong>방법</strong>
+swin_base_patch4_window7_224 모델 앞쪽 Stage에서 feature vector를 추출해 대분류 loss를 구하고,   중간에서 feature vector를 추출해 중분류 loss를 구하고, 기존 loss를 소분류 loss로 생각해 3개의 loss를 가중합해서 backpropagation을 적용하면, 바로 500개의 클래스를 구분하는 것보다 적중도가 올라가지 않을까?</p></li>
+</ul>
+</li>
 </ul>
 </section>
 <section id="id3">
 <h2>요약<a class="headerlink" href="#id3" title="Link to this heading"></a></h2>
 <ul class="simple">
-<li><p>모델: ResNet -&gt; ResNext -&gt; Swin_transformer(window7) -&gt; Ensemble</p></li>
-<li><p>Augmentation: Canny, Morhphology,Gaussian blur, moving blur</p></li>
-<li><p>깨달은 점: ~~~</p></li>
+<li><p>모델:<br />
+swin_base_patch4_window7_224 -&gt; swin_base_patch4_window7_224 custom</p></li>
+<li><p>Train :<br />
+accumulate_grad_batches(8)</p></li>
+<li><p>Augmentation:<br />
+HorizontalFlip(p=0.5), VerticalFlip(p=0.5), Rotate(limit=15), RandomBrightnessContrast(p=0.2)</p></li>
+<li><p>깨달은 점: 많은 클래스를 예측하는 데에 coarse-to-fine 기법이 효과적이었다.</p></li>
 </ul>
 </section>
 <section id="id4">
 <h2>자세한 내용<a class="headerlink" href="#id4" title="Link to this heading"></a></h2>
+<section id="swin-transformer-swin-base-patch4-window7-224">
+<h3>1. Swin Transformer인 swin_base_patch4_window7_224를 활용한 이유<a class="headerlink" href="#swin-transformer-swin-base-patch4-window7-224" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p>ViT와는 달리, Swin Transformer는 이미지의 각 부분에서 먼저 로컬 정보를 학습하고, 이후 윈도우 이동 기법을 통해 글로벌 정보를 학습하는 방식을 채택하여, 대, 중, 소분류와 같은 다양한 수준의 정보를 점진적으로 추출할 수 있다고 판단</p></li>
+<li><p>CNN은 국소적인 receptive field를 통해 로컬 패턴을 잘 학습하지만, 이미지 전체의 상호작용이나 먼 거리의 의존성을 학습하는 데 한계가 있음. 반면, self-attention은 이미지의 모든 패치 간의 관계를 학습하여 글로벌 정보를 더 효과적으로 학습가능</p></li>
+<li><p>Swin Transformer는 local self-attention과 윈도우 이동 기법을 통해 이러한 문제를 해결하며, 로컬과 글로벌 정보를 단계적으로 통합하여 다양한 수준의 특징을 효과적으로 학습할 수 있는 구조라 판단해 선택</p></li>
+</ul>
+</section>
+<section id="swin-transformer">
+<h3>2. Swin Transformer의 구조<a class="headerlink" href="#swin-transformer" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p><strong>Patch Partition and Embedding</strong></p></li>
+<li><p><strong>Stage 0</strong> : 2개의 SwinTransformerBlock으로 구성됨</p></li>
+<li><p><strong>Stage 1</strong> : 2개의 SwinTransformerBlock으로 구성됨</p></li>
+</ul>
+<p>-&gt; 블록에서 Window-based Self-Attention, MLP 수행 (패치의 해상도 그대로 유지)</p>
+<ul class="simple">
+<li><p><strong>Stage 2</strong> : 18개의 SwinTransformerBlock으로 구성됨</p></li>
+<li><p><strong>Stage 3</strong> : 2개의 SwinTransformerBlock으로 구성됨</p></li>
+</ul>
+<p>-&gt; patch merging 단계가 있어 해상도가 줄어듦 (더 높은 수준의 특징 학습 가능)</p>
+<ul class="simple">
+<li><p><strong>Classification Head</strong></p></li>
+</ul>
+<p>-&gt; global pooling, FC layer를 통해 분류 작업 수행</p>
+</section>
 <section id="id5">
-<h3>1. 시작<a class="headerlink" href="#id5" title="Link to this heading"></a></h3>
-<p>처음에는 파이토치 라이트닝이 익숙하지 않아 전체적인 부분을 파악하는 데 어려움이 존재했다. ~~</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">100</span><span class="p">):</span>
-    <span class="nb">print</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;hello&#39;</span><span class="p">)</span>
-</pre></div>
-</div>
-<p>Hello, Today
-Today’s <code class="docutils literal notranslate"><span class="pre">weather</span></code> is so hotttt.</p>
+<h3>3. 시도<a class="headerlink" href="#id5" title="Link to this heading"></a></h3>
+<section id="id6">
+<h4>시도 1<a class="headerlink" href="#id6" title="Link to this heading"></a></h4>
+<p>swin_base_patch4_window7_224 모델의 4번째 Stage의 2번째 block에서 대분류 feature vector를 뽑고, head 전에서 중분류 feature vector를 뽑아서 loss별 가중치 large_loss_weight=0.1, small_loss_weight=0.2, original_loss_weight=0.7로 실험 진행</p>
+<ul class="simple">
+<li><p><strong>실험 의도 1</strong>: 뒤쪽 Stage에서 feature vector를 구해서 loss를 구하면, 모델의 끝부분에서 더 정제된 feature vector를 사용하여 정확도를 높이려는 의도</p></li>
+<li><p><strong>실험 의도 2</strong>: 소분류를 결국 잘하는 게 중요하므로 소분류에 weight를 더 주는 의도</p></li>
+<li><p><strong>결과</strong>: validation_acc 0.85092, test_acc 0.866</p></li>
+</ul>
+<p><img alt="image" src="https://github.com/user-attachments/assets/b0fa46c1-e76c-4fde-9ff7-60e3eb4e9450" /></p>
+</section>
+<section id="id7">
+<h4>시도 2<a class="headerlink" href="#id7" title="Link to this heading"></a></h4>
+<p>모델 개선을 위해 large_loss_weight=0.4, small_loss_weight=0.2, original_loss_weight=0.4로 실험 진행</p>
+<ul class="simple">
+<li><p><strong>실험 의도</strong>: 대분류와 소분류에 동일한 가중치를 부여하면, 중분류 성능이 조금 떨어지더라도 대분류와 소분류에서의 학습이 더 강화될 것</p></li>
+<li><p><strong>결과</strong>: validation_acc 0.84526</p></li>
+</ul>
+</section>
+<section id="id8">
+<h4>시도 3<a class="headerlink" href="#id8" title="Link to this heading"></a></h4>
+<p>validation_acc를 높이기 위해, large_loss_weight=0.5, small_loss_weight=0.3, original_loss_weight=0.2로 실험 진행</p>
+<ul class="simple">
+<li><p><strong>실험 의도</strong>: 대분류 - 중분류 - 소분류 순으로 weight를 주어, 큰 분류에서 분류가 잘 되면 뒤에서도 자연스레 잘 분류되지 않을까 하는 의도</p></li>
+<li><p><strong>결과</strong>: validation_acc 0.84426, test_acc 0.857</p></li>
+</ul>
+<p><img alt="image" src="https://github.com/user-attachments/assets/b9795c2c-a31e-4ead-82cc-54bc9366b141" /></p>
+</section>
+<section id="id9">
+<h4>시도 4<a class="headerlink" href="#id9" title="Link to this heading"></a></h4>
+<p>시도 3과 같은 조건에 Stratified K-Fold를 fold=5로 진행</p>
+<ul class="simple">
+<li><p><strong>실험 의도</strong>: 대분류, 중분류, 소분류 문제에서 클래스 비율이 중요하다고 판단했고, Stratified K-Fold가 매우 유용할 것으로 생각</p></li>
+<li><p><strong>결과</strong>: validation_acc 0.85586, test_acc 0.902</p></li>
+</ul>
+<p><img alt="image" src="https://github.com/user-attachments/assets/6b223ed9-c7e1-4ac3-b974-d9c6163958c1" /></p>
+</section>
+<section id="id10">
+<h4>시도 5<a class="headerlink" href="#id10" title="Link to this heading"></a></h4>
+<p>시도 3과 같은 조건에 Stratified K-Fold를 fold=10으로 진행</p>
+<ul class="simple">
+<li><p><strong>실험 의도</strong>: 데이터 수가 적을 때 fold 수를 세분화하여 모델이 더 다양한 데이터 분포를 학습할 기회를 제공해서 성능을 향상시킬 수 있는 의도</p></li>
+<li><p><strong>결과</strong>: validation_acc 0.86352, test_acc 0.904</p></li>
+</ul>
+<p><img alt="image" src="https://github.com/user-attachments/assets/0dee0eac-996b-4aa2-883a-9be01e2b5c6d" /></p>
+</section>
+<section id="id11">
+<h4>시도 6<a class="headerlink" href="#id11" title="Link to this heading"></a></h4>
+<p>swin_base_patch4_window7_224 모델의 3번째 Stage의 18번째 block에서 대분류 feature vector를 뽑고, 4번째 Stage의 2번째 block에서 중분류 feature vector를 뽑아서 loss별 가중치 large_loss_weight=0.5, small_loss_weight=0.3, original_loss_weight=0.2로 실험 진행 (Stratified K-Fold fold=5)</p>
+<ul class="simple">
+<li><p><strong>실험 의도</strong>: 모델의 앞쪽 Stage는 더 일반적인 특징을 추출하므로, 앞쪽 Stage에서 추출된 덜 세부적인 특징을 사용해 대분류를 분류하면 성능이 오를 것이라는 의도</p></li>
+<li><p><strong>결과</strong>: validation_acc 0.84421, test_acc 0.891</p></li>
+</ul>
+<p><img alt="image" src="https://github.com/user-attachments/assets/ad8fb711-ef9e-43c6-850c-72314f5b83d2" /></p>
+</section>
+</section>
+<section id="id12">
+<h3>4. 한계 및 아쉬운 점<a class="headerlink" href="#id12" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p><strong>한계</strong>: 시도 6에서 Stage를 바꾼 부분이 같은 조건의 시도 4와 비교했을 때 test_acc가 낮게 나왔는데, 앞쪽 Stage에서 대분류 feature vector를 빼오면 성능이 더 오를 거라는 예상과 달라서 한계에 부딪혔다.</p></li>
+<li><p><strong>아쉬웠던 점</strong>: 시간이 부족해 체계적인 실험을 하지 못 한 점이 아쉽다. 돌이켜 생각해보면, 시도 2에서 test 제출을 해보고, 해당 값과 시도 3의 값을 비교 후 다음 단계로 실험이 넘어갔어야 했는데, 바로 시도 3의 결과를 더 발전시켜서 시도 2의 결과에 대한 고찰이 부족했다. 더하여 여러 cutmix, sweep 등을 시간 부족으로 시도해보지 못한 점도 아쉽다.</p></li>
+</ul>
+</section>
+<section id="id13">
+<h3>5. 한계/교훈을 바탕으로 다음 프로젝트에서 시도해보고 싶은 점<a class="headerlink" href="#id13" title="Link to this heading"></a></h3>
+<p>먼저, 가설을 세우고 그에 따라 실험을 진행하는 것이 중요하다는 것을 깨달았고, 실험 변수를 하나씩 조정하면서 보다 체계적으로 접근해야겠다는 생각을 하게 되었다. 또한, 실험 내용을 꼼꼼히 기록하는 것이 얼마나 중요한지도 배웠다. 더불어, 프로젝트 기간 동안 시간 관리의 중요성을 느꼈고, 팀원 간 코드 공유를 통해 시간을 절약할 수 있는 방법을 팀원분들께 제안드렸다.</p>
 </section>
 </section>
 </section>
